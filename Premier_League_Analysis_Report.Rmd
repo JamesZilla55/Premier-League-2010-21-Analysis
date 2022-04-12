@@ -1,0 +1,130 @@
+---
+title: 'Assignment #3- Part B Analysis Reoprt'
+author: "James K"
+date: '2022-04-08'
+output: html_document
+---
+# Analysis of English Premier League Soccer 2010-2021
+## by James K
+### Dataset source: [EPL Dataset - Kaggle.com](https://www.kaggle.com/datasets/quadeer15sh/premier-league-standings-11-seasons-20102021)
+
+```{r setup, include=TRUE}
+epl = read.csv('EPL Standings 2010-2021.csv')
+```
+```{r, message=FALSE, warning=FALSE}
+# bring the tidyverse library into the Markdown so I can use all the packages it has
+# Also no need for the messages or warnings to take up space
+library('tidyverse')
+```
+
+
+![*Current Logo for the English Premier League*](EPLLogo21.png){width=50%}
+
+## Background
+
+The English Premier League is the top tier of English football and is the most watched soccer league worldwide. They also happen to be the most competitive in Europe. While most countries have only have a couple teams compete for the title there are always a few different teams in the title hunt for this league. In this analysis, the last decade of Premier League soccer will be examined. To start off, the data set that was used is a compilation of the league tables from 2010-2011 to the 2020-2021 seasons. Here is a quick sample of what the data looks like from the first season:
+
+```{r}
+head(epl)
+```
+
+## League Winners
+
+Firstly, lets look at the number of teams to finish first during these seasons.There are 5 teams to have done this. Manchester City has the most with 5 titles, followed by Chelsea and Manchester United with 2 each, and Liverpool and Leicester City with 1 title each. 
+
+```{r fig.width=10}
+# Filted out everyone who didn't win and graph the reulting winners by Team name
+winners <- epl %>% filter(Pos==1)
+ggplot(data=winners)+geom_bar(mapping = aes(x=Team, fill=Team))   
+
+```
+
+## Top 6   
+
+The "Top 6" are 6 of the richer and strongest teams in the league. They are typically seen as the teams to beat and the regular title challengers. These teams may not always the top teams but all they all happened to be there in the first season of this data set. The top 6 teams are:    
+1. __`r epl$Team[1]`__   
+2. __`r epl$Team[2]`__   
+3. __`r epl$Team[3]`__   
+4. __`r epl$Team[4]`__   
+5. __`r epl$Team[5]`__   
+6. __`r epl$Team[6]`__   
+     
+Now lets see how many points they finished with compared to each other over the years:
+
+```{r fig.width=10}
+# fit. width was used to expand the graph as the season names bunched together without it
+# I had issues filtering out the other teams, so made a data frame with the teams I wanted and then used an inner join to filter the whole dataset to only the teams I wanted there.
+Team <- c('Manchester United', 'Chelsea', 'Manchester City', 'Arsenal', 'Tottenham Hotspur', 'Liverpool')
+topSix <- data.frame(Team)
+sixTable<- epl %>% inner_join(topSix, by = "Team")
+
+# Graph the points gotten by each team over the seasons
+ggplot(data=sixTable, aes(Season, Pts, group=Team, color=Team)) + geom_line()
+```
+      
+There are a few interesting points that can be made by looking at this graph. The first is that in the 2011-12 season, Manchester United and Manchester City tied for 1st with the same number of points and the title was decided for the only time ever by goal differential in Manchester City's favor. Another interesting fact is how jumbled up and confusing this graph is shows how competitive the teams are, constantly changing positions year after year. Lastly, only 1 team has been able to hold on and win back to back titles and that was Manchester City in the 2017-18 & 2018-19 seasons.  
+   
+   
+     
+___Team Logos of the Top 6:___
+![__Manchester United__](ManUtd.png){width=10%}  ![__Chelsea__](Chelsea.png){width=10%} ![__Manchester City__](ManCity.png){width=10%} ![__Arsenal__](arsenal.png){width=8%}  ![__Tottenham Hotspur__](Spurs.png){width=10%} ![__Liverpool__](liverpool.png){width=9%} 
+  
+     
+**********************************
+    
+    
+   
+## Overall League Table 
+```{r}
+# Wanted a list of all the games each team played and the points they got over the entire decade
+played <- epl %>% group_by(Team) %>% summarise_at(vars(Pld), list(Pld=sum))
+points <- epl %>% group_by(Team) %>% summarise_at(vars(Pts), list(Pts=sum))
+DecTable <- played %>% inner_join(points, by = "Team")
+DecTable <- DecTable %>% arrange(desc(Pts)) %>% head(10)
+DecTable
+```
+       
+It is no surprise that Manchester City is on the top of the overall league table considering they have won it 5 times. One surprising thing to note is that only 1 team (other than the top 6) has spent all of the last 10 years in the Premier League and that was *`r DecTable$Team[7]`*.
+
+## Relegation    
+Speaking of teams that have been missing for some seasons, European football is unique compared to American sports in that the worst three teams in the league get sent down to a 2nd tier division each year. They are replaced with three of the top teams from that lower league. Sometimes a team can come back after 1 season, but other teams are not so lucky and can get stuck in the lower leagues. Conventional wisdom says that a team needs 40 points to guarantee safety, lets see if that's true by comparing the bottom 4 teams from each season.
+```{r fig.width=10}
+relegation <- data.frame(Pos=c(17, 18, 19, 20))
+losers <- epl %>% inner_join(relegation, by = "Pos")
+
+# Graph the points of the teams that were relegated with the lowest team that was safe
+ggplot(losers, aes(Season, Pts, group=Pos,color=Pos)) + geom_line()      
+```
+     
+Yes, 40 points is a good mark for safety, but it might even be a little high. As the team to survive with the lowest points had 35 whic was goo enough for survival in `r nrow(epl %>% filter(Pos==18) %>% filter(Pts<35))` of the `r n_distinct(epl$Season)` seasons.
+     
+## Champions League    
+The Champions League is the biggest competition in Europe where the best teams from different countries compete to see who the winner is for that year. Qualification to the Champions League is usually done by finishing in the Top 4, but can also be done by winning a European competition. For example Chelsea finished 6th in the 2011-12 season but Chelsea won the Champions League that year guaranteeing qualification for the next year's competition. English Teams have won this trophy 3 times this decade Chelsea 2011-12 & 2020-21 and Liverpool 2018-19. Lets see which teams typically represent England in the Champions League:
+```{r fig.width=10}
+# Had to use the string detect because it was not guarenteed that the Champions league teams would just be the top4.
+ChampLeag <- mutate(epl, Champions.League = str_detect(epl$Qualification.or.relegation, 'Champions League')) %>% filter(Champions.League)
+
+# Pie chart to show which teams were in the Champions League the most
+ggplot(ChampLeag, aes(x="", y=Team, fill=Team)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar("y", start=0) +
+  theme_void() 
+```
+
+## Fun facts:
+* `r n_distinct(epl$Team)` different teams have competed in the Premier League this decade.
+  + Only `r n_distinct((epl %>% filter(Pos<5))$Team)` different teams have finished in the top 4 at least once.
+  + `r n_distinct(losers$Team)` different teams have been relegated, with the teams being relegated the most at 3 times each are:    
+    +  _`r (losers %>% count(Team, sort = TRUE)) $Team[1]`_    
+    +  _`r (losers %>% count(Team, sort = TRUE)) $Team[2]`_   
+    +  _`r (losers %>% count(Team, sort = TRUE)) $Team[3]`_    
+    +  _`r (losers %>% count(Team, sort = TRUE)) $Team[4]`_    
+    +  _`r (losers %>% count(Team, sort = TRUE)) $Team[5]`_    
+    +  _`r (losers %>% count(Team, sort = TRUE)) $Team[6]`_    
+* The most goals scored in a season was by `r (epl %>% arrange(desc(GF)))$Team[1]` in the `r (epl %>% arrange(desc(GF)))$Season[1]` season, where they scored `r (epl %>% arrange(desc(GF)))$GF[1]` goals, while conceding only `r (epl %>% arrange(desc(GF)))$GA[1]`.   
+  + They were also the team with the highest points total of the decade with `r (epl %>% arrange(desc(GF)))$Pts[1]`.    
+* The 'unluckiest' team would be the `r (epl %>% filter(Pos>1) %>% arrange(desc(Pts)))$Season[1]` `r (epl %>% filter(Pos>1) %>% arrange(desc(Pts)))$Team[1]` team, as they are the team with the highest point total not to win the league with `r (epl %>% filter(Pos>1) %>% arrange(desc(Pts)))$Pts[1]` points. This amount of points would have been good enough to win the league in `r nrow(epl %>% filter(Pos==1) %>% filter(Pts<(epl %>% filter(Pos>1) %>% arrange(desc(Pts)))$Pts[1]))` other seasons this decade.   
+* The team that conceded the most goals in a season was `r (epl %>% arrange(desc(GA)))$Team[1]` during the `r (epl %>% arrange(desc(GA)))$Season[1]` where they allowed `r (epl %>% arrange(desc(GA)))$GA[1]` while only scoring `r (epl %>% arrange(desc(GA)))$GF[1]`.    
+* The 'luckiest' team would be the `r (epl %>% filter(Pos<18) %>% arrange(GF))$Season[1]` `r (epl %>% filter(Pos<18) %>% arrange(GF))$Team[1]` team, as they are the team that survived relegation with the fewest goals scored with `r (epl %>% filter(Pos<18) %>% arrange(GF))$GF[1]`.    
+
+
